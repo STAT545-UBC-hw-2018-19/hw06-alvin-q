@@ -3,6 +3,8 @@ title: "HW06 Alvin"
 output:
   html_document:
     keep_md: true
+    toc: true
+    toc_depth: 3
 editor_options: 
   chunk_output_type: console
 ---
