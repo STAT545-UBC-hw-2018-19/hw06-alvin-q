@@ -1,0 +1,346 @@
+---
+title: "HW06 Alvin"
+output:
+  html_document:
+    keep_md: true
+editor_options: 
+  chunk_output_type: console
+---
+
+# Homework 06: Data wrangling wrap up
+
+Load packages
+
+```{r}
+suppressPackageStartupMessages(library(tidyverse))
+library(stringr)
+suppressPackageStartupMessages(library(testthat))
+```
+
+## 1. Character data
+
+Read and work the exercises in the Strings chapter or R for Data Science.
+
+### 14.2.5 Exercises
+
+__In code that doesn’t use stringr, you’ll often see paste() and paste0(). What’s the difference between the two functions? What stringr function are they equivalent to? How do the functions differ in their handling of NA?__
+
+You can look at the help files for `?paste` annd `?paste0`.
+
+`paste (..., sep = " ", collapse = NULL)`
+
+`paste0(..., collapse = NULL)`
+
+We can see that `paste` allows use to use a `sep`. With `paste0`, you essentially must use `sep = ""`. Example:
+
+```{r}
+paste("Alvin", "Qiu", "No", "Spaces", sep = "")
+paste0("Alvin", "Qiu", "No", "Spaces")
+```
+
+These above were equivalent.
+
+```{r}
+paste("Alvin", "Qiu", "With", "Spaces", sep = " ")
+```
+
+Here, I use `sep` to introduce spaces.
+
+The equivalent stringr function is `str_c()`. Building from aboves, let's see an example.
+
+```{r}
+str_c("Alvin", "Qiu", "No", "Spaces", sep = "")
+str_c("Alvin", "Qiu", "With", "Spaces", sep = " ")
+```
+
+NA's are handled differently.
+
+With `paste`:
+
+```{r}
+paste("We have an NA here: ", NA, sep = "")
+paste0("We have an NA here: ", NA)
+```
+
+`NA` appears as "NA" and is concatenated.
+
+With `str_c`:
+
+```{r}
+str_c("We have an NA here: ", NA, sep = "")
+```
+
+
+The entire output is now `NA`. No concatenation.
+
+__In your own words, describe the difference between the sep and collapse arguments to str_c().__
+
+Imagine we have multiple vectors of strings and we want to use `str_c`.
+
+```{r}
+(names <- c("Alvin", "Bryan", "Carl"))
+(fav_food <- c("Apple", "Bread", "Chocolate"))
+```
+
+Using `sep` will be the space between each respective element in the vectors.
+
+```{r}
+str_c(names, fav_food, sep = ": ")
+```
+
+The output is a vector of 3 strings here. We can use `collapse` to then combine each of these concatenated string vectors into 1 string. `collaspe` will be the space between each of these elements here.
+
+```{r}
+str_c(names, fav_food, sep = ": ", collapse = " ---- ")
+```
+
+__Use str_length() and str_sub() to extract the middle character from a string. What will you do if the string has an even number of characters?__
+
+Let's start with an odd number of characters.
+
+```{r}
+(test_string <- "Alvin")
+
+str_sub(test_string, start = str_length(test_string)/2 + 1, end = str_length(test_string)/2 + 1)
+```
+
+We can see the "v" is the middle character.
+
+Now let's try an even number of characters. We want the middle 2.
+
+```{r}
+(test_string <- "AlvinQiu")
+
+str_sub(test_string, start = str_length(test_string)/2, end = str_length(test_string)/2 + 1)
+```
+
+
+We can see the "in" are the middle 2 characters.
+
+__What does str_wrap() do? When might you want to use it?__
+
+For a long line of text, `str_wrap` can "wrap" the string. In "implements the Knuth-Plass paragraph wrapping algorithm". Essentially the line of text gets broken into multiple lines with a set length. This way it can fit into a screen or page width that is predetermined.
+
+Let's see an example with a line from an UpToDate article titled "Vancomycin: Parenteral dosing, monitoring, and adverse effects in adults":
+
+```{r}
+test_string <- "The optimal method for determining the initial vancomycin dose and interval that most reliably achieves target serum trough concentrations is uncertain; protocols vary between institutions [10]. For initial dosing in most hospitalized patients, we use the nomogram outlined in the table (table 1), based on actual body weight and creatinine clearance using the Cockcroft-Gault equation (calculator 1). However, use of the Cockcroft-Gault equation may result in overestimation of vancomycin clearance in older adults and in patients with low muscle mass (eg, amputees, cerebral palsy). In these patients, more conservative (ie, less frequent) dosing and/or use of an alternate method for assessment of renal function is appropriate. Issues related to assessment of renal function are reviewed separately. (See Assessment of kidney function.)"
+```
+
+Let's output the string.
+
+```{r}
+cat(test_string)
+```
+
+Let's use `str_wrap` with a width of 80 (this is also the default).
+
+```{r}
+cat(str_wrap(test_string), "\n")
+```
+
+Now we can change the width.
+
+```{r}
+cat(str_wrap(test_string, width = 40), "\n")
+```
+
+__What does str_trim() do? What’s the opposite of str_trim()?__
+
+`str_trim` removes whitespaces (like spaces) from the start and end of a string.
+
+```{r}
+(test_string <- "   AlvinQiu   ")
+
+str_trim(test_string)
+```
+
+Note that the 3 starting and ending spaces are removed.
+
+The opposite is `str_pad`. We can add spaces or other characters to either the left, right or both, until a desired length.
+
+```{r}
+(test_string <- c("Alvin", "Qiu", "STAT", "Assignment"))
+
+str_pad(test_string, width = 10, side = "left", pad = "$")
+```
+
+We padded the left of the string with "$" so that the length is at least 10 here.
+
+
+```{r}
+str_pad(test_string, width = 15, side = "right", pad = "*")
+```
+
+Here, we pad the right with "*" until a length of 15.
+
+__Write a function that turns (e.g.) a vector c("a", "b", "c") into the string a, b, and c. Think carefully about what it should do if given a vector of length 0, 1, or 2.__
+
+For my function, given a vector of a,b,c ... z :
+-if the length is 0, return an empty string ""
+-if the length is 1, return "a"
+-if the length is 2, return "a and b"
+-else, return "a, b, ...., and z"
+
+```{r}
+vec_to_str <- function(x) {
+  if (length(x) == 0) {
+    return("")
+  }
+  else if (length(x) == 1) {
+    return(x)
+  }
+  else if (length(x) == 2) {
+    return(str_c(x, collapse = " and "))
+  }
+  else {
+    # part 1: concat all elements except the last one into a string with ", " seperating
+    part1 <- str_c(x[-length(x)], collapse = ", ")
+    
+    # part 2: concat with ", and" and then the last element
+    part2 <- str_c(part1, x[length(x)], sep = ", and ")
+    
+    # return
+    return(part2)
+  }
+}
+```
+
+Now test this function with `testthat`.
+
+```{r}
+test_that("vec_to_str() failed", {
+  # length = 0
+  expect_equal(vec_to_str(c()), "")
+  
+  # length = 1
+  expect_equal(vec_to_str(c("a")), "a")
+  
+  # length = 2
+  expect_equal(vec_to_str(c("a", "b")), "a and b")
+  
+  # length = 3
+  expect_equal(vec_to_str(c("a", "b", "c")), "a, b, and c")
+  
+  # length = 4
+  expect_equal(vec_to_str(c("a", "b", "c", "d")), "a, b, c, and d")
+})
+```
+
+No error.
+
+We can also output the results.
+
+```{r}
+vec_to_str(c())
+vec_to_str(c("a"))
+vec_to_str(c("a", "b"))
+vec_to_str(c("a", "b", "c"))
+vec_to_str(c("a", "b", "c", "d"))
+```
+
+### 14.3.2.1 Exercises
+
+__How would you match the literal string "$^$"?__
+
+```{r}
+str_view("Alvin$^$Qiu", pattern = "\\$\\^\\$", match = TRUE)
+```
+
+__Given the corpus of common words in stringr::words, create regular expressions that find all words that:__
+
+__Start with “y”.__
+
+```{r}
+str_view(words, pattern = "^y", match = TRUE)
+```
+
+__End with “x”__
+
+```{r}
+str_view(words, pattern = "x$", match = TRUE)
+```
+
+__Are exactly three letters long. (Don’t cheat by using str_length()!)__
+
+```{r}
+str_view(words, pattern = "^.{3}$", match = TRUE)
+```
+
+__Have seven letters or more.__
+
+```{r}
+str_view(words, pattern = "^.{7,}$", match = TRUE)
+```
+
+### 14.3.3.1 Exercises
+
+__Create regular expressions to find all words that:__
+
+__Start with a vowel.__
+
+```{r}
+str_view(words, pattern = "^[aeiou]", match = TRUE)
+```
+
+__That only contain consonants. (Hint: thinking about matching “not”-vowels.)__
+
+```{r}
+str_view(words, pattern = "[aeiou]", match = FALSE)
+```
+
+__End with ed, but not with eed.__
+
+```{r}
+str_view(words, pattern = "[^e]ed$", match = TRUE)
+```
+
+__End with ing or ise.__
+
+```{r}
+str_view(words, pattern = "ing$|ise$", match = TRUE)
+```
+
+__Empirically verify the rule “i before e except after c”.__
+
+```{r}
+str_view(words, pattern = "[^c]ie|cei", match = TRUE)
+```
+
+We can see that many words have "i before e except after c".
+
+```{r}
+str_view(words, pattern = "[^c]ei|cie", match = TRUE)
+```
+
+There are only 3 words where this is not the case. Therefore, this rules tends to be work, but there are exceptions (science, society, weigh).
+
+__Is “q” always followed by a “u”?__
+
+```{r}
+str_view(words, pattern = "q[^u]", match = TRUE)
+```
+
+No results with "q" then not "u". So yes.
+
+__Write a regular expression that matches a word if it’s probably written in British English, not American English.__
+
+Note: American spelling tends to end in "or", while British spelling ends in "our". An example is "color" vs. "colour".
+
+```{r}
+str_view(words, pattern = "our$", match = TRUE)
+str_view(words, pattern = "or$", match = TRUE)
+```
+
+We can see that the words are "colour", "favour", "labour" instead of "color", "favor", "labor". So these are British spelling.
+
+__Create a regular expression that will match telephone numbers as commonly written in your country.__
+
+Telephone numbers in Canada have this format: "+X (XXX) XXX-XXXX".
+
+```{r}
+(test_num <- c("+1 (416) 123-4567", "+45 (123) 111-2222", "1-800-111-9999"))
+
+str_view(test_num, pattern = "^\\+1 \\([1-9][0-9]{2}\\) [0-9]{3}-[0-9]{4}$", match = TRUE)
+```
+
