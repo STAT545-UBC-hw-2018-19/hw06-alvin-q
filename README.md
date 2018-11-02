@@ -7,4 +7,4 @@ This homework repo contains:
 - [md file](hw06.md)
 - [html](hw06.html)
 
-Since the MD is not as easy to read, please take a look at the [rendered html](http://htmlpreview.github.io/?https://github.com/STAT545-UBC-students/hw06-alvin-q/blob/master/hw06.html). 
+Since the MD is not as easy to read, please take a look at the [rendered html](https://raw.githack.com/STAT545-UBC-students/hw06-alvin-q/master/hw06.html). 
