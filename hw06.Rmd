@@ -393,7 +393,7 @@ find_group_min_max <- function(df, group, category, plot = FALSE){
 
 Note: the use of `lazyeval::interp()` is needed in this function. Also I use `group_by_` and `summarise_` instead of `group_by` and `summarise` in order to pass function arguments into these dplyr functions.
 
-Now I will test the function with `gapminder`. I will pass the category as "lifeExp". Note that the defualt is not to plot.
+Now I will test the function with `gapminder`. I will pass the category as "lifeExp". Note that the default is not to plot.
 
 ```{r}
 find_group_min_max(df = gapminder, group = "continent", category = "lifeExp") %>%
