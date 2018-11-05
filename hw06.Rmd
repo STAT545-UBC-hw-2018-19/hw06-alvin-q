@@ -20,6 +20,8 @@ suppressPackageStartupMessages(library(testthat))
 suppressPackageStartupMessages(library(lazyeval))
 library(gapminder)
 library(knitr)
+library(repurrrsive)
+library(listviewer)
 ```
 
 ## 1. Character data
@@ -391,7 +393,7 @@ find_group_min_max <- function(df, group, category, plot = FALSE){
 }
 ```
 
-Note: the use of `lazyeval::interp()` is needed in this function. Also I use `group_by_` and `summarise_` instead of `group_by` and `summarise` in order to pass function arguments into these dplyr functions.
+Note: the use of `lazyeval::interp()` is needed in this function. Also I use `group_by_` and `summarise_` instead of `group_by` and `summarise` in order to pass function arguments into these dplyr functions. Additionally, in use  `aes_string` instead of `aes`. These are all needed for my function to work.
 
 Now I will test the function with `gapminder`. I will pass the category as "lifeExp". Note that the default is not to plot.
 
@@ -417,4 +419,221 @@ find_group_min_max(df = gapminder, group = "continent", category = "gdpPercap", 
   kable()
 ```
 
+## 5. Work with a list
+
+### Trump Android words
+
+Load data
+
+```{r}
+library(jsonlite)
+
+#load(url("http://varianceexplained.org/files/trump_tweets_df.rda"))
+#load("trump_tweets_df.rda")
+#glimpse(trump_tweets_df)
+
+#trump_tweets_df %>% 
+#    toJSON() %>%
+#    write_lines("hw06_files/trump_data.json")
+
+trump_tweets_df <- fromJSON("hw06_files/trump_data.json")
+tweets <- trump_tweets_df$text
+tweets %>% head() %>% strtrim(70)
+```
+
+Trump Android words
+
+```{r}
+regex <- "badly|crazy|weak|spent|strong|dumb|joke|guns|funny|dead"
+
+tweets <- tweets[c(1, 2, 5, 6, 198, 347, 919)]
+tweets %>% strtrim(70)
+```
+
+Are you ready for gregexpr()?
+
+```{r}
+matches <- gregexpr(regex, tweets)
+str(matches)
+```
+
+Examine matches.
+
+```{r}
+lengths(matches)                      # just happens to exist for length
+
+sapply(matches, length)               # NSFP = not safe for programming
+
+vapply(matches, length, integer(1))   # preferred base approach
+
+map_int(matches, length)              # purrr way
+```
+
+Exercise: Get a list of the match lengths.
+
+Pick one nontrivial example, e.g. m <- matches[[7]].
+Get the attribute named match.length. Hint: attr().
+Drop that approach into purrr::map() to scale up to the full matches list.
+
+```{r}
+m <- matches[[7]]
+attr(m, which = "match.length")
+```
+
+Different ways to do so.
+
+1 Pre-defined custom function. Conceptually simplest? Most verbose.
+
+```{r}
+ml <- function(x) attr(x, which = "match.length")
+map(matches, ml)
+```
+
+2 Anonymous function. More abstract? Very compact.
+
+```{r}
+map(matches, ~ attr(.x, which = "match.length"))
+```
+
+3 Pre-existing function, additional arguments passed via ....
+
+```{r}
+(match_length <- map(matches, attr, which = "match.length"))
+```
+
+Exercise: Count the number of Trump Android words in each tweet.
+
+Pick two examples at the extremes: a tweet with 0 Trump words and another with 3.
+Write some code that takes the associated element of matches and returns 0 or 3, as appropriate.
+Use one of the approaches above to insert this into purrr::map() and apply to matches.
+
+```{r}
+m <- matches[[1]]
+sum(m > 0)
+
+m <- matches[[7]]
+sum(m > 0)
+```
+
+Insert into the machinery:
+
+```{r}
+f <- function(x) sum(x > 0)
+map(matches, f)
+
+# Or possibly
+
+map(matches, ~ sum(.x > 0))
+```
+
+What is the resulting object?
+What would be a simpler form of the same info?
+Read the help on map_int() and its other type-specific friends.
+Tweak your existing approach to return an integer vector, with length equal to the number of tweets.
+
+```{r}
+map_int(matches, ~ sum(.x > 0))
+```
+
+Confirm that this is, indeed, different from just taking the lengths of the elements of matches:
+
+```{r}
+tibble(
+  naive_length = lengths(matches),
+  n_words = map_int(matches, ~ sum(.x > 0))
+)
+```
+
+Strip the attributes from matches
+
+Exercise!
+
+We have safely stored the match lengths in match_length.
+
+Let’s create an almost-copy of matches and call it match_first. How will it differ? Remove the attributes from the elements of matches, so there’s less clutter when we print.
+
+Hint: as.vector() will strip attributes.
+
+```{r}
+(match_first <- map(matches, as.vector))
+```
+
+Assess progress in a small example
+
+```{r}
+tweets %>% strtrim(70)
+
+match_first
+
+match_length
+```
+
+Start with tweet #7, with 3 Trump words.
+
+```{r}
+(tweet <- tweets[7])
+
+(t_first <- match_first[[7]])
+
+(t_length <- match_length[[7]])
+
+(t_last <- t_first + t_length - 1)
+
+substring(tweet, t_first, t_last)
+```
+
+How well does this code work for tweet #1, with 0 Trump words?
+
+```{r}
+(tweet <- tweets[1])
+
+(t_first <- match_first[[1]])
+
+(t_length <- match_length[[1]])
+
+(t_last <- t_first + t_length - 1)
+
+substring(tweet, t_first, t_last)
+```
+
+Store where Trump words end
+
+Make a list that holds where the Trump words end. Call it match_last.
+
+```{r}
+(match_last <- map2(match_first, match_length, ~ .x + .y - 1))
+```
+
+Extract the Trump words
+
+```{r}
+pmap(list(text = tweets, first = match_first, last = match_last), substring)
+```
+
+March through the rows in a data frame
+Remember that a data frame is, in fact, a list of equal-length vectors. Just like the .l argument of pmap(). So often it’s nice to work your problems in the context of a data frame, instead of using free-floating vectors or lists. Why?
+
+It’s safer. This makes it very hard for you to subset or reorder one of the pieces and forget to do the same to the others.
+It’s tidier. Your project is contained in one neat object. You can print it, View() it, str(), etc. to get a sense of how things stand. This is more annoying if stuff is lying around in separate objects, so you’re less likely to catch problems quickly.
+How would we do that post hoc here?
+
+```{r}
+mdf <- tibble(
+  text = tweets,
+  first = match_first,
+  last = match_last
+)
+pmap(mdf, substring)
+```
+
+What if we take it all from the top, using a data frame approach and being as concise as possible?
+
+```{r}
+tibble(text = tweets,
+       first = gregexpr(regex, tweets)) %>% 
+  mutate(match_length = map(first, ~ attr(.x, which = "match.length")),
+         last = map2(first, match_length, ~ .x + .y - 1)) %>%
+  select(-match_length) %>% 
+  pmap(substring)
+```
 
